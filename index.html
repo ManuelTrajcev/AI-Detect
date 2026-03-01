@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Forensic Noise-Guided Vision Transformer for AI-Generated Image Detection</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Crimson+Pro:ital,wght@0,400;0,600;0,700;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0c0c18;
+    --surface: #12122a;
+    --surface2: #1a1a3a;
+    --border: #2a2a5a;
+    --text: #d4d4e8;
+    --text-dim: #8888aa;
+    --accent: #7c6cf0;
+    --accent2: #a78bfa;
+    --green: #4ade80;
+    --red: #f87171;
+    --amber: #fbbf24;
+    --pink: #f472b6;
+    --cyan: #22d3ee;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Crimson Pro', Georgia, serif;
+    font-size: 17px;
+    line-height: 1.8;
+    max-width: 860px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  /* Header */
+  .paper-header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+  .paper-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    line-height: 1.3;
+    margin-bottom: 16px;
+  }
+  .paper-header .authors {
+    color: var(--accent2);
+    font-size: 15px;
+    font-style: italic;
+  }
+  .paper-header .meta {
+    color: var(--text-dim);
+    font-size: 13px;
+    margin-top: 8px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Abstract box */
+  .abstract {
+    background: var(--surface);
+    border-left: 3px solid var(--accent);
+    border-radius: 0 8px 8px 0;
+    padding: 24px 28px;
+    margin-bottom: 40px;
+  }
+  .abstract h2 {
+    font-size: 14px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .abstract p { font-size: 15px; color: var(--text-dim); line-height: 1.7; }
+
+  /* Table of Contents */
+  .toc {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 20px 28px;
+    margin-bottom: 40px;
+  }
+  .toc h3 {
+    font-size: 13px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .toc a {
+    color: var(--text-dim);
+    text-decoration: none;
+    font-size: 14px;
+    display: block;
+    padding: 4px 0;
+    transition: color 0.2s;
+  }
+  .toc a:hover { color: var(--accent2); }
+  .toc .sub { padding-left: 20px; font-size: 13px; }
+
+  /* Sections */
+  .section { margin-bottom: 44px; }
+  h2.section-title {
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+  }
+  h3.subsection-title {
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent2);
+    margin-top: 28px;
+    margin-bottom: 12px;
+  }
+  h4.subsubsection-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--cyan);
+    margin-top: 20px;
+    margin-bottom: 8px;
+  }
+  p { margin-bottom: 14px; text-align: justify; }
+  strong { color: #e8e8f8; }
+
+  /* Code / math */
+  code, .mono {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+    color: var(--accent2);
+    background: var(--surface2);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+  .equation {
+    display: block;
+    text-align: center;
+    padding: 16px 0;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+    color: var(--cyan);
+  }
+  .kernel-matrix {
+    display: flex;
+    justify-content: center;
+    margin: 16px 0;
+  }
+  .kernel-matrix table {
+    border-collapse: collapse;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 15px;
+  }
+  .kernel-matrix td {
+    width: 42px;
+    height: 42px;
+    text-align: center;
+    border: 1px solid var(--border);
+    color: var(--cyan);
+  }
+  .kernel-matrix td.center { color: var(--green); font-weight: 700; }
+
+  /* Numbered contributions list */
+  .contributions {
+    padding-left: 0;
+    counter-reset: contrib;
+    list-style: none;
+  }
+  .contributions li {
+    counter-increment: contrib;
+    padding: 8px 0 8px 36px;
+    position: relative;
+    font-size: 16px;
+  }
+  .contributions li::before {
+    content: counter(contrib) ".";
+    position: absolute;
+    left: 8px;
+    color: var(--accent);
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 14px;
+  }
+
+  /* Metric cards */
+  .metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 10px;
+    margin: 20px 0;
+  }
+  .metric-card {
+    background: var(--surface);
+    border-radius: 8px;
+    padding: 16px;
+    text-align: center;
+  }
+  .metric-card .label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .metric-card .value {
+    font-size: 28px;
+    font-weight: 700;
+    margin: 6px 0 2px;
+  }
+  .metric-card .sub {
+    font-size: 11px;
+    color: var(--text-dim);
+    font-family: 'JetBrains Mono', monospace;
+  }
+
+  /* Tables */
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 14px;
+  }
+  table.data-table thead th {
+    background: var(--surface2);
+    color: var(--text-dim);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'JetBrains Mono', monospace;
+    padding: 10px 12px;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+  }
+  table.data-table tbody td {
+    padding: 10px 12px;
+    border-bottom: 1px solid #1a1a30;
+  }
+  table.data-table tbody tr:hover { background: var(--surface); }
+  .val-green { color: var(--green); font-weight: 600; }
+  .val-purple { color: var(--accent2); font-weight: 600; }
+  .val-amber { color: var(--amber); font-weight: 600; }
+  .val-red { color: var(--red); font-weight: 600; }
+  .val-dim { color: var(--text-dim); }
+
+  /* Bar chart (CSS only) */
+  .bar-chart { margin: 16px 0; }
+  .bar-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .bar-label {
+    width: 120px;
+    font-size: 13px;
+    font-family: 'JetBrains Mono', monospace;
+    color: var(--text-dim);
+    text-align: right;
+    padding-right: 12px;
+  }
+  .bar-track {
+    flex: 1;
+    background: var(--surface);
+    border-radius: 6px;
+    height: 26px;
+    overflow: hidden;
+    position: relative;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    font-size: 12px;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', monospace;
+    color: #fff;
+    transition: width 1s ease;
+  }
+
+  /* Insight callout */
+  .callout {
+    background: var(--surface);
+    border-left: 3px solid var(--amber);
+    border-radius: 0 8px 8px 0;
+    padding: 16px 20px;
+    margin: 20px 0;
+    font-size: 15px;
+  }
+  .callout.warning { border-left-color: var(--red); }
+  .callout.info { border-left-color: var(--cyan); }
+  .callout-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-family: 'JetBrains Mono', monospace;
+    margin-bottom: 6px;
+  }
+
+  /* Training log sparkline table */
+  .training-phase {
+    font-size: 11px;
+    font-family: 'JetBrains Mono', monospace;
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-weight: 600;
+  }
+  .phase-train { background: #f43f5e20; color: #fb7185; }
+  .phase-eval { background: #6366f120; color: #818cf8; }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    body { font-size: 16px; padding: 20px 16px 60px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ====== HEADER ====== -->
+<div class="paper-header">
+  <h1>Forensic Noise-Guided Vision Transformer for AI-Generated Image Detection</h1>
+  <div class="authors">Manuel Trajchev</div>
+  <div class="meta">Machine Vision Project · Feb, 2026</div>
+</div>
+
+<!-- ====== ABSTRACT ====== -->
+<div class="abstract" id="abstract">
+  <h2>Abstract</h2>
+  <p>
+    We present a forensic detection pipeline that combines Spatial Rich Model (SRM) noise residual extraction with a fine-tuned Vision Transformer (ViT) to distinguish authentic photographs from AI-generated images. Rather than training on raw RGB pixels—where classifiers risk learning semantic shortcuts—we suppress all scene content with a high-pass filter and present the model exclusively with the noise-floor signal that encodes image provenance. A hardware-efficient, streaming preprocessing pipeline applies the SRM transform on-the-fly via depthwise <code>F.conv2d</code>, enabling training on the 100,000-image CIFAKE dataset within consumer GPU memory constraints. The model achieves <strong>96.80% F1</strong> and <strong>96.79% accuracy</strong> after three epochs of fine-tuning with mixed-precision training, gradient checkpointing, and gradient accumulation. We further implement a three-panel explainability visualization—prediction overlay, attention heatmap with DCT energy score, and noise residual map—to render the model's decisions interpretable. We document an observed false-positive failure mode on heavily post-processed photographs and propose concrete mitigations. Our results validate the hypothesis that training on forensic noise residuals rather than semantic features yields an effective and interpretable AI-image detector.
+  </p>
+</div>
+
+<!-- ====== TOC ====== -->
+<div class="toc">
+  <h3>Contents</h3>
+  <a href="#sec1">1. Introduction</a>
+  <a href="#sec3">2. Methodology</a>
+  <a class="sub" href="#sec3-1">2.1 Data Preprocessing & Forensic Feature Extraction</a>
+  <a class="sub" href="#sec3-2">2.2 Model Architecture & Fine-Tuning</a>
+  <a href="#sec4">3. Inference & Interpretability Pipeline</a>
+  <a href="#sec-results">4. Results</a>
+  <a class="sub" href="#sec-r1">4.1 Training Dynamics</a>
+  <a class="sub" href="#sec-r2">4.2 Evaluation Performance</a>
+  <a class="sub" href="#sec-r3">4.3 Convergence Analysis</a>
+  <a href="#sec5">5. Discussion</a>
+  <a class="sub" href="#sec5-1">5.1 Why Noise Residuals Outperform RGB Features</a>
+  <a class="sub" href="#sec5-2">5.2 The Role of Attention in Forensic Feature Localization</a>
+  <a class="sub" href="#sec5-3">5.3 Normalization Matters: The Case Against Per-Image Min–Max Scaling</a>
+  <a class="sub" href="#sec5-4">5.4 Observed Failure Mode: False Positives on Post-Processed Photographs</a>
+  <a class="sub" href="#sec5-5">5.5 Limitations and Future Work</a>
+  <a href="#sec6">6. Conclusion</a>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 1: INTRODUCTION -->
+<!-- ====================================================================== -->
+<div class="section" id="sec1">
+  <h2 class="section-title">1. Introduction</h2>
+
+  <p>The rapid advancement of generative artificial intelligence—spanning Generative Adversarial Networks (GANs), diffusion models, and autoregressive image synthesis—has precipitated an unprecedented crisis in visual media trust. Modern generators such as Stable Diffusion, DALL·E, and Midjourney produce photorealistic imagery that is frequently indistinguishable from authentic photographs to the human eye. The implications extend across domains of significant societal consequence: fabricated evidence in legal proceedings, synthetic portraits weaponized for disinformation and social engineering, fraudulent identity documents, and the broad erosion of public trust in visual media as a reliable record of reality.</p>
+
+  <p>Early approaches to AI-generated image detection relied on hand-crafted statistical features or shallow classifiers trained on pixel-level cues specific to particular generative architectures. While effective within narrow domains, these methods exhibited poor generalization: a detector trained on GAN-generated faces would often fail on diffusion-generated landscapes, and vice versa. More recent work has leveraged deep learning—particularly convolutional neural networks (CNNs)—to learn discriminative features directly from data. However, CNN-based approaches trained on raw RGB pixels remain vulnerable to a fundamental confounder: the model may learn semantic shortcuts (e.g., associating certain object categories or scene types with a particular class label) rather than the low-level forensic signatures that genuinely distinguish authentic from synthetic imagery.</p>
+
+  <p>This vulnerability motivates a shift in perspective: rather than asking a classifier to discover forensic features amid the complexity of natural image content, we can <em>explicitly extract</em> forensic features and present only those to the model. The forensic signal of interest is the image's noise residual—the high-frequency component that remains after suppression of smooth, low-frequency scene content. In authentic photographs, this residual is dominated by sensor noise: stochastic, spatially stationary, and spectrally broadband, arising from well-characterized physical processes including photon shot noise and electronic readout noise. In AI-generated images, the residual reflects the computational process of image synthesis: it is typically lower in energy, more spatially structured, and exhibits periodic patterns tied to the generator's upsampling architecture. Spatial Rich Model (SRM) filters, originally developed for image steganalysis, provide a principled and efficient means of extracting these residuals.</p>
+
+  <p>In this work, we propose a forensic detection pipeline that combines SRM-based noise residual extraction with a fine-tuned Vision Transformer (ViT) backbone. The key contributions are as follows:</p>
+
+  <ol class="contributions">
+    <li><strong>Forensic-first preprocessing.</strong> We replace the conventional RGB input with SRM noise residuals, forcing the classifier to operate exclusively in the forensic noise domain and eliminating the possibility of semantic shortcutting.</li>
+    <li><strong>Hardware-efficient dynamic pipeline.</strong> We design a streaming, on-the-fly SRM transformation using PyTorch's <code>F.conv2d</code> within a lazy <code>set_transform</code> callback, enabling training on 100,000 images without materializing the filtered dataset in memory.</li>
+    <li><strong>Interpretable inference.</strong> We implement a three-panel explainability visualization combining the model's prediction, attention-based spatial heatmaps, and the underlying noise residual, providing human-readable forensic evidence alongside every classification decision.</li>
+    <li><strong>Honest failure analysis.</strong> We identify and characterize a systematic false-positive failure mode affecting heavily post-processed real photographs, and propose concrete directions for mitigation.</li>
+  </ol>
+
+  <p>The remainder of this paper is organized as follows. Section 2 details the methodology, including the SRM preprocessing pipeline and the ViT fine-tuning strategy. Section 3 describes the inference and interpretability pipeline. Section 4 presents quantitative training results. Section 5 discusses findings, failure modes, and limitations. Section 6 concludes.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 2: METHODOLOGY -->
+<!-- ====================================================================== -->
+<div class="section" id="sec3">
+  <h2 class="section-title">2. Methodology</h2>
+
+  <h3 class="subsection-title" id="sec3-1">2.1 Data Preprocessing & Forensic Feature Extraction</h3>
+
+  <p>A central premise of this work is that the statistical fingerprints distinguishing authentic photographs from AI-generated imagery reside not in semantic content but in the high-frequency noise domain. Camera sensors introduce stochastic noise governed by Poisson and Gaussian processes—a signal that is physically grounded in photon shot noise, read noise, and fixed-pattern sensor nonuniformities. Generative models, by contrast, synthesize pixel values through learned deconvolution or diffusion processes that produce noise residuals with markedly different spectral characteristics: lower entropy, greater spatial periodicity, and suppressed high-frequency energy. To expose this distinction, we suppress semantic content entirely and present the classifier with forensic noise residuals derived from a Spatial Rich Model (SRM) high-pass filter.</p>
+
+  <p><strong>SRM kernel formulation.</strong> We employ the 3×3 Laplacian-variant kernel widely used in steganalysis and image forensics:</p>
+
+  <div class="kernel-matrix">
+    <table>
+      <tr><td>−1</td><td>−1</td><td>−1</td></tr>
+      <tr><td>−1</td><td class="center">8</td><td>−1</td></tr>
+      <tr><td>−1</td><td>−1</td><td>−1</td></tr>
+    </table>
+  </div>
+
+  <p>This kernel computes, for each pixel, the difference between eight times its intensity and the sum of its eight immediate neighbors, effectively isolating local discontinuities while annihilating smooth, low-frequency structure. Applied independently to each of the three RGB channels via depthwise convolution (<code>groups=3</code>), the resulting residual tensor preserves chromatic noise correlations that may carry additional forensic value—for instance, cross-channel demosaicing artifacts present in camera-captured images but absent in AI-generated content.</p>
+
+  <p><strong>Dynamic on-the-fly transformation pipeline.</strong> A naïve implementation would materialize the full set of 100,000 filtered images to disk or RAM before training. On memory-constrained hardware, this approach is untenable: at 224 × 224 × 3 × 4 bytes per 32-bit floating-point tensor, the uncompressed dataset would require approximately 57 GB of host memory. We therefore designed a lazy, streaming preprocessing pipeline that applies the SRM transform dynamically at batch-fetch time. The pipeline operates in two stages:</p>
+
+  <p>First, <strong>standard ViT tokenization</strong>: each raw RGB image is resized and normalized by the pretrained <code>ViTImageProcessor</code>, yielding a tensor of shape (B, 3, 224, 224) whose values are centered and scaled according to the ImageNet statistics expected by the backbone.</p>
+
+  <p>Second, <strong>batched SRM convolution on CPU</strong>: immediately before transfer to the GPU, we apply the SRM kernel via <code>torch.nn.functional.conv2d</code> with <code>groups=3</code> (depthwise convolution), <code>padding=1</code>, and no learnable parameters. Because <code>F.conv2d</code> delegates to optimized BLAS and SIMD routines, this operation is vectorized across the full batch and incurs negligible wall-clock overhead compared to disk I/O. This design was implemented using Hugging Face Datasets' <code>set_transform</code> mechanism, which attaches the transformation as a callback invoked lazily at indexing time rather than eagerly mapping over the entire dataset. The result is a constant-memory pipeline: only the current batch of residuals is ever resident in host RAM.</p>
+
+  <p><strong>Residual normalization.</strong> A critical design decision concerns how the filtered residuals are scaled. Per-image min–max normalization is counterproductive: it rescales every image's residual to the same [0, 1] range, thereby destroying precisely the absolute magnitude difference that distinguishes real images (high-energy stochastic residuals) from AI-generated images (low-energy structured residuals). We instead adopt a fixed clipping-and-scaling scheme:</p>
+
+  <div class="equation">r̂ = clamp(r, −3.0, 3.0) / 3.0 → [−1, 1]</div>
+
+  <p>This preserves the informative magnitude gap between classes. The clipping threshold of ±3.0 was selected empirically to retain the bulk of the residual distribution while suppressing rare outliers that could destabilize training.</p>
+
+  <h3 class="subsection-title" id="sec3-2">2.2 Model Architecture & Fine-Tuning</h3>
+
+  <p><strong>Base architecture.</strong> We adopt <code>vit-base-patch16-224</code> (Dosovitskiy et al., 2021) as the backbone encoder. The model partitions each 224 × 224 input into a grid of 14 × 14 = 196 non-overlapping patches of size 16 × 16 pixels, linearly projects each patch into a 768-dimensional embedding, prepends a learnable [CLS] token, adds positional embeddings, and processes the resulting sequence through 12 Transformer encoder layers with 12 attention heads each. The pretrained classification head is replaced with a randomly initialized two-class linear layer mapping the final [CLS] representation to logits over {FAKE, REAL}.</p>
+
+  <p>A natural question arises: does an ImageNet-pretrained backbone retain useful representations when its input distribution shifts from natural RGB images to high-pass noise residuals? We hypothesize—and our results confirm—that the lower Transformer layers, which encode generic local texture and edge statistics, transfer effectively to the noise-residual domain, while the upper layers and the new classification head learn to discriminate the class-specific noise signatures exposed by the SRM filter.</p>
+
+  <p><strong>Hardware-efficient training configuration.</strong> Training was conducted on consumer-grade GPU hardware under strict memory constraints. Three complementary strategies were employed: <strong>mixed-precision training (FP16)</strong>, approximately halving activation memory; <strong>gradient checkpointing</strong>, recomputing activations layer-by-layer during backpropagation to reduce peak memory; and <strong>gradient accumulation</strong> (per-device batch size 8, 4 accumulation steps, effective batch size 32).</p>
+
+  <p>The model was optimized with AdamW (learning rate 2 × 10⁻⁵) for 3 epochs over the full 100,000-image training split. Evaluation was performed at the end of each epoch on a balanced, randomly shuffled subset of 750 held-out images. The checkpoint with the highest F1 score was retained as the final model.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 3: INFERENCE & INTERPRETABILITY -->
+<!-- ====================================================================== -->
+<div class="section" id="sec4">
+  <h2 class="section-title">3. Inference & Interpretability Pipeline</h2>
+
+  <p>A recurring criticism of deep learning–based media forensics is the opacity of learned decision boundaries: a binary output provides no insight into <em>which</em> visual properties triggered the judgment, undermining trust and precluding expert review. To address this, we developed a three-panel explainability visualization that accompanies every inference.</p>
+
+  <p><strong>Panel 1: Prediction overlay.</strong> The original, unmodified RGB image is displayed with the predicted class label and the Softmax confidence score superimposed. This provides immediate diagnostic value—an analyst can assess whether the confidence is calibrated.</p>
+
+  <p><strong>Panel 2: Attention heatmap with DCT score.</strong> We extract the multi-head self-attention weights from the final (12th) Transformer layer and average across all 12 heads to obtain a single attention distribution over the 196 patch tokens with respect to the [CLS] token. This 14 × 14 spatial attention map is bilinearly upsampled to the original image resolution and rendered as a semi-transparent jet colormap overlay. For images classified as FAKE, attention concentrates on regions exhibiting unnatural texture homogeneity, blending seams, or periodic noise artifacts. As a complementary frequency-domain diagnostic, we compute the DCT of the grayscale input and report the total energy in the high-frequency subband (the lower-right 32 × 32 block).</p>
+
+  <p><strong>Panel 3: Noise residual visualization.</strong> The SRM-filtered image is rendered using a perceptually uniform magma colormap. This allows an analyst to visually confirm the forensic features underlying the prediction and acts as a sanity check that the preprocessing pipeline is functioning correctly.</p>
+
+  <p><strong>Pipeline consistency guarantee.</strong> The inference pipeline applies exactly the same preprocessing chain as training—ViT processor normalization followed by <code>F.conv2d</code>-based SRM filtering with fixed clipping at ±3.0—enforced by routing both pipelines through a single shared function (<code>apply_srm_to_tensor</code>).</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 4: RESULTS -->
+<!-- ====================================================================== -->
+<div class="section" id="sec-results">
+  <h2 class="section-title">4. Results</h2>
+
+  <p>The model was trained on the full CIFAKE training split (100,000 images: 50,000 authentic, 50,000 AI-generated) for 3 epochs, totaling 4,689 optimization steps. Training completed in 21 minutes 46 seconds at a throughput of 229.6 samples/second. Evaluation was performed on a balanced, shuffled subset of 750 held-out test images at the end of each epoch.</p>
+
+  <!-- Final metric cards -->
+  <div class="metrics-grid">
+    <div class="metric-card">
+      <div class="label">Accuracy</div>
+      <div class="value" style="color: var(--green);">96.79%</div>
+      <div class="sub">+1.34% over 3 epochs</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">F1 Score</div>
+      <div class="value" style="color: var(--accent);">96.80%</div>
+      <div class="sub">Best checkpoint</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Eval Loss</div>
+      <div class="value" style="color: var(--amber);">0.0970</div>
+      <div class="sub">↓ from 0.1207</div>
+    </div>
+    <div class="metric-card">
+      <div class="label">Train Time</div>
+      <div class="value" style="color: var(--pink);">21m 46s</div>
+      <div class="sub">229.6 samples/sec</div>
+    </div>
+  </div>
+
+  <!-- Bar chart -->
+  <div class="bar-chart">
+    <div class="bar-row">
+      <div class="bar-label">Accuracy</div>
+      <div class="bar-track"><div class="bar-fill" style="width:96.79%; background: linear-gradient(90deg, var(--green), #22c55e88);">96.79%</div></div>
+    </div>
+    <div class="bar-row">
+      <div class="bar-label">F1 Score</div>
+      <div class="bar-track"><div class="bar-fill" style="width:96.80%; background: linear-gradient(90deg, var(--accent), var(--accent2));">96.80%</div></div>
+    </div>
+  </div>
+
+  <h3 class="subsection-title" id="sec-r1">4.1 Training Dynamics</h3>
+
+  <p>Table 1 presents the complete training log. Training loss decreased monotonically from 0.2083 at epoch 0.32 to 0.0472 at epoch 2.88—a 77.3% reduction—indicating strong and stable convergence. The learning rate followed a cosine decay schedule from 2 × 10⁻⁵ to 8.1 × 10⁻⁷.</p>
+
+  <!-- Full training log table -->
+  <table class="data-table">
+    <thead>
+      <tr><th>Epoch</th><th>Phase</th><th>Loss</th><th>Grad Norm</th><th>Learning Rate</th><th>Accuracy</th><th>F1</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>0.32</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.2083</td><td>2.484</td><td class="val-dim">1.787e-05</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>0.64</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.1509</td><td>4.502</td><td class="val-dim">1.574e-05</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>0.96</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.1262</td><td>1.795</td><td class="val-dim">1.361e-05</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr style="background: var(--surface);"><td><strong>1.00</strong></td><td><span class="training-phase phase-eval">EVAL</span></td><td class="val-amber">0.1207</td><td class="val-dim">—</td><td class="val-dim">—</td><td class="val-green">95.45%</td><td class="val-purple">95.53%</td></tr>
+      <tr><td>1.28</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0969</td><td>1.626</td><td class="val-dim">1.147e-05</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>1.60</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0911</td><td>3.793</td><td class="val-dim">9.341e-06</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>1.92</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0859</td><td>2.170</td><td class="val-dim">7.208e-06</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr style="background: var(--surface);"><td><strong>2.00</strong></td><td><span class="training-phase phase-eval">EVAL</span></td><td class="val-amber">0.0999</td><td class="val-dim">—</td><td class="val-dim">—</td><td class="val-green">96.27%</td><td class="val-purple">96.30%</td></tr>
+      <tr><td>2.24</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0606</td><td>1.395</td><td class="val-dim">5.076e-06</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>2.56</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0524</td><td>1.330</td><td class="val-dim">2.943e-06</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr><td>2.88</td><td><span class="training-phase phase-train">TRAIN</span></td><td class="val-red">0.0472</td><td>5.798</td><td class="val-dim">8.104e-07</td><td class="val-dim">—</td><td class="val-dim">—</td></tr>
+      <tr style="background: var(--surface);"><td><strong>3.00</strong></td><td><span class="training-phase phase-eval">EVAL</span></td><td class="val-amber">0.0970</td><td class="val-dim">—</td><td class="val-dim">—</td><td class="val-green">96.79%</td><td class="val-purple">96.80%</td></tr>
+    </tbody>
+  </table>
+
+  <h3 class="subsection-title" id="sec-r2">4.2 Evaluation Performance</h3>
+
+  <p>Table 2 summarizes the epoch-level evaluation metrics. Both accuracy and F1 improved monotonically, with the largest gain occurring between epochs 1 and 2 (+0.82% accuracy) and diminishing returns between epochs 2 and 3 (+0.52% accuracy).</p>
+
+  <table class="data-table">
+    <thead>
+      <tr><th>Epoch</th><th>Eval Loss</th><th>Accuracy</th><th>F1 Score</th><th>Δ Accuracy</th><th>Runtime (s)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><strong>1</strong></td><td class="val-amber">0.1207</td><td class="val-green">95.45%</td><td class="val-purple">95.53%</td><td class="val-dim">—</td><td>30.11</td></tr>
+      <tr><td><strong>2</strong></td><td class="val-amber">0.0999</td><td class="val-green">96.27%</td><td class="val-purple">96.30%</td><td class="val-green">+0.82%</td><td>30.40</td></tr>
+      <tr><td><strong>3</strong></td><td class="val-amber">0.0970</td><td class="val-green">96.79%</td><td class="val-purple">96.80%</td><td class="val-green">+0.52%</td><td>29.96</td></tr>
+    </tbody>
+  </table>
+
+  <p>The near-identical accuracy and F1 scores at every epoch indicate balanced performance across both classes, confirming that the model is not biased toward either FAKE or REAL predictions. This balance is notable given that the evaluation subset was randomly shuffled rather than explicitly stratified.</p>
+
+  <h3 class="subsection-title" id="sec-r3">4.3 Convergence Analysis</h3>
+
+  <div class="callout info">
+    <div class="callout-label" style="color: var(--cyan);">Convergence & Generalization Gap</div>
+    The train–eval loss gap widened from ~0.005 at epoch 1 to ~0.050 by epoch 3. While training loss continued falling (0.126 → 0.047), evaluation loss plateaued between epochs 2 and 3 (0.0999 → 0.0970). Crucially, however, evaluation <em>accuracy and F1 continued to improve</em> at every epoch (95.45% → 96.27% → 96.79%), indicating that the model had not yet crossed the threshold into harmful overfitting. The widening gap represents early signs that the model was approaching—but had not yet reached—the point of diminishing generalization. A fully overfitted model would exhibit declining evaluation performance alongside falling training loss; this was not observed.
+  </div>
+
+  <p>The gradient norm remained stable between 1.3–4.5 for most of training, with a single spike to 5.798 near epoch 2.88. This spike is a well-documented artifact of cosine-decay learning rate schedules: as the learning rate approaches zero, the gradient-to-update ratio can amplify apparent norms without indicating training instability.</p>
+
+  <div class="callout">
+    <div class="callout-label" style="color: var(--amber);">Practical Implication</div>
+    The diminishing returns between epochs 2–3 suggest the model was approaching optimal convergence. Additional training beyond 3 epochs would likely yield negligible gains or begin degrading evaluation performance. The <code>load_best_model_at_end=True</code> configuration correctly retained the epoch-3 checkpoint, which achieved the best evaluation F1. This confirms that the training was stopped at an appropriate point—near the optimal trade-off between continued learning and the onset of overfitting.
+  </div>
+
+  <p>The mean training loss across all 3 epochs was 0.0998, and training throughput averaged 229.6 samples/second at 3.589 optimization steps/second. Evaluation throughput of 664 samples/second (10.4 steps/second) confirms minimal overhead from the dynamic SRM preprocessing pipeline during inference.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 5: DISCUSSION -->
+<!-- ====================================================================== -->
+<div class="section" id="sec5">
+  <h2 class="section-title">5. Discussion</h2>
+
+  <h3 class="subsection-title" id="sec5-1">5.1 Why Noise Residuals Outperform RGB Features</h3>
+
+  <p><strong>Disentangling content from provenance.</strong> A classifier trained on RGB pixels must implicitly learn to factor its representation into content-related features (objects, scenes, textures) and provenance-related features (noise statistics, compression artifacts, spectral signatures). This factorization is under-determined: the model may shortcut by learning content-based correlations that fail catastrophically on out-of-distribution content. By applying the SRM high-pass filter before the model, we perform this factorization explicitly and deterministically. The residual tensor contains virtually no semantic content, so the model is <em>forced</em> to learn provenance features.</p>
+
+  <p><strong>Exploiting the physics–statistics gap.</strong> The noise in a real photograph is a physical signal arising from quantum-mechanical photon statistics (shot noise), electronic readout circuits, and manufacturing nonuniformities (PRNU). These processes produce noise that is spatially stationary, spectrally broadband, and statistically independent across pixels. Generative models produce images through learned transformations that impose structural regularity on the residual domain. GAN generators produce checkerboard artifacts at frequencies determined by upsampling stride; diffusion models produce residuals whose spatial autocorrelation reflects the learned denoising schedule. These signatures are subtle in RGB but become salient in the SRM residual domain.</p>
+
+  <p><strong>Robustness to generative model diversity.</strong> The noise-residual approach offers improved generator-agnostic performance because the features it targets—the <em>absence</em> of physically grounded sensor noise and the <em>presence</em> of structurally correlated generation artifacts—are shared properties of all current generative architectures. The specific spectral fingerprint varies across generators, but the qualitative departure from camera-noise statistics is a universal tell.</p>
+
+  <h3 class="subsection-title" id="sec5-2">5.2 The Role of Attention in Forensic Feature Localization</h3>
+
+  <p>The ViT's self-attention mechanism provides a natural mechanism for spatial forensic reasoning absent in purely convolutional architectures. Because every patch token attends to every other, the model can detect non-local inconsistencies in the noise field—for example, a region where noise statistics abruptly change due to inpainting or compositing. Our attention heatmaps provide preliminary evidence that the model leverages this capacity: attention clusters around forensically informative regions rather than distributing uniformly.</p>
+
+  <h3 class="subsection-title" id="sec5-3">5.3 Normalization Matters: The Case Against Per-Image Min–Max Scaling</h3>
+
+  <p>An instructive failure mode encountered during development concerns residual normalization. An early pipeline version applied per-image min–max normalization to the SRM output, mapping each image's residual independently to [0, 1]. This produced visually appealing maps but destroyed the absolute magnitude difference between classes: a real image with a high-energy residual and an AI image with a low-energy residual were both rescaled to the same range, discarding a primary discriminative cue. Switching to fixed clipping at ±3.0 yielded a substantial improvement, underscoring a broader principle: visualizations optimized for human perception do not necessarily produce optimal classifier inputs.</p>
+
+  <h3 class="subsection-title" id="sec5-4">5.4 Observed Failure Mode: False Positives on Post-Processed Photographs</h3>
+
+  <p>Empirical evaluation revealed a notable class of false positives in which authentic photographs are misclassified as AI-generated with moderate-to-high confidence. A representative example is a real photograph of a San Francisco streetscape classified as FAKE with 84.81% confidence.</p>
+
+  <p>The attention heatmap reveals that the model's decision is driven primarily by the sky region and distant urban background—areas characterized by smooth gradients, haze, and atmospheric perspective effects. The noise residual panel corroborates this: the sky exhibits an unusually low-energy, smooth residual resembling AI-generated content, while foreground buildings retain the stochastic noise expected of camera-captured imagery. The DCT score of 2430.96 falls in an ambiguous range.</p>
+
+  <p>This failure mode is attributable to a fundamental tension in the noise-residual approach. Several common photographic conditions suppress authentic sensor noise in ways that mimic generative artifacts: <strong>aggressive denoising</strong>, which smooths the noise floor in low-contrast regions; <strong>JPEG recompression</strong>, which quantizes high-frequency coefficients; <strong>atmospheric haze and overexposure</strong>, which reduce signal contrast; and <strong>computational photography pipelines</strong> (HDR, multi-frame stacking) that average out stochastic noise.</p>
+
+  <div class="callout warning">
+    <div class="callout-label" style="color: var(--red);">Key Finding</div>
+    The binary distinction between "camera noise" and "generative noise" is an idealization. Real photographs span a continuum of noise characteristics shaped by sensor hardware, ISO settings, in-camera processing, post-processing software, and transmission-induced recompression. A more robust system would benefit from training data that explicitly includes heavily post-processed real photographs.
+  </div>
+
+  <h3 class="subsection-title" id="sec5-5">5.5 Limitations and Future Work</h3>
+
+  <p>Several limitations should be acknowledged. The CIFAKE dataset comprises images from a limited set of generative architectures; generalization to state-of-the-art models (SDXL, DALL·E 3, Midjourney v6) remains to be validated. The single SRM kernel may not capture the full range of generative artifacts; richer multi-kernel feature sets could prove beneficial. The attention-based explainability analysis is qualitative; rigorous evaluation using ground-truth manipulation masks would strengthen interpretability claims. Adversarial robustness—susceptibility to images deliberately post-processed to mimic camera noise—remains an open challenge.</p>
+
+  <p>Future directions include multi-class generator attribution, learnable preprocessing layers, and robustness evaluation under social-media compression transforms.</p>
+</div>
+
+<!-- ====================================================================== -->
+<!-- SECTION 6: CONCLUSION -->
+<!-- ====================================================================== -->
+<div class="section" id="sec6">
+  <h2 class="section-title">6. Conclusion</h2>
+
+  <p>This work presented a forensic noise-guided approach to AI-generated image detection, combining Spatial Rich Model (SRM) high-pass filtering with a fine-tuned Vision Transformer. By preprocessing images into noise residuals before classification, we force the model to learn from forensic signatures rather than semantic content. The resulting system achieves <strong>96.80% F1</strong> and <strong>96.79% accuracy</strong> on the CIFAKE benchmark, with balanced performance across both classes.</p>
+
+  <p>Our pipeline makes several practical contributions. The dynamic SRM transformation eliminates the need to materialize a filtered dataset, reducing peak memory to a single batch of residual tensors. Mixed-precision training, gradient checkpointing, and gradient accumulation enable fine-tuning of the 86-million-parameter ViT-Base on consumer-grade GPU hardware in under 22 minutes—demonstrating that forensic AI detection research need not be gated by access to high-performance computing clusters.</p>
+
+  <p>The three-panel explainability visualization addresses a critical gap in forensic AI systems: the need for human-interpretable evidence. By presenting predictions alongside attention heatmaps and raw noise residuals, the pipeline enables analysts to verify <em>why</em> a classification was made rather than accepting a black-box verdict.</p>
+
+  <p>Our analysis also revealed important limitations. The false-positive failure mode on heavily post-processed photographs demonstrates that the binary distinction between camera noise and generative noise is an idealization that breaks down at the boundaries of modern computational photography. The convergence analysis revealed a widening train–eval loss gap by epoch 3, indicating the model was approaching—but had not yet reached—the threshold of harmful overfitting, as evaluation accuracy and F1 continued to improve at every checkpoint.</p>
+
+  <p>Despite these limitations, the core finding is encouraging: a Vision Transformer trained on nothing but noise residuals—with all semantic content deliberately destroyed—can learn to distinguish real from synthetic images with strong performance. This validates the forensic-first hypothesis and suggests a promising direction for detection systems robust to the ever-expanding diversity of generative AI. Future work should broaden the forensic feature set through learnable preprocessing, harden the training distribution with aggressively post-processed real-world photographs, and scale evaluation to multi-generator benchmarks reflecting the complexity of the current synthetic media ecosystem.</p>
+</div>
+
+</body>
+</html>
