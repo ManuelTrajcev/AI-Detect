@@ -20,11 +20,11 @@ The SRM-trained model outperforms the RGB baseline by **46 percentage points** �
 ## Project Structure
 
 ```
-train_noise.py          # SRM model — training, evaluation, and inference
+train_srm.py          # SRM model — training, evaluation, and inference
 train_rgb.py            # RGB baseline — training, evaluation, and inference
 index.html              # Research paper with full comparative analysis
-vit-cifake-output/      # Trained SRM model weights
-vit-cifake-output2/     # Trained RGB model weights
+vit-cifake-output-srm/      # Trained SRM model weights
+vit-cifake-outputrgb/     # Trained RGB model weights
 test_images/            # Test images for inference
 predictions/            # Saved prediction visualizations
 ```
