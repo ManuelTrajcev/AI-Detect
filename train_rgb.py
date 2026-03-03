@@ -1,4 +1,5 @@
 import argparse
+import io
 import os
 import random
 from collections import Counter
@@ -13,6 +14,7 @@ import matplotlib.pyplot as plt
 from datasets import load_dataset
 from PIL import Image
 from scipy.fftpack import dct
+from torchvision import transforms as T
 from transformers import (
    Trainer,
    TrainingArguments,
@@ -125,28 +127,69 @@ def get_datasets(data_root: str) -> dict:
 def build_processor() -> ViTImageProcessor:
    return ViTImageProcessor.from_pretrained(MODEL_NAME)
 
+
+# ---------------------------------------------------------------------------
+# Data Augmentation
+# ---------------------------------------------------------------------------
+
+def jpeg_compress(img: Image.Image, quality_range=(30, 95)) -> Image.Image:
+    """Simulate JPEG compression artifacts to improve robustness."""
+    buf = io.BytesIO()
+    q = random.randint(*quality_range)
+    img.save(buf, format="JPEG", quality=q)
+    buf.seek(0)
+    return Image.open(buf).convert("RGB")
+
+
+TRAIN_AUGMENT = T.Compose([
+    T.RandomResizedCrop(224, scale=(0.5, 1.0), interpolation=T.InterpolationMode.BICUBIC),
+    T.RandomHorizontalFlip(p=0.5),
+    T.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.1, hue=0.05),
+    T.Lambda(lambda img: jpeg_compress(img) if random.random() < 0.3 else img),
+    T.RandomGrayscale(p=0.05),
+])
+
+
 def preprocess_datasets(ds: dict, processor: ViTImageProcessor) -> dict:
-    def _transform(batch):
-        images = [img.convert("RGB") for img in batch["image"]]
-        encoded = processor(images=images, return_tensors="pt")
-        pixel_values = encoded["pixel_values"] 
-        
-        encoded["pixel_values"] = apply_srm_to_tensor(pixel_values)
-        encoded["labels"] = torch.tensor(batch["label"])
-        return encoded
+    def _make_transform(augment: bool):
+        def _transform(batch):
+            images = [img.convert("RGB") for img in batch["image"]]
+            if augment:
+                images = [TRAIN_AUGMENT(img) for img in images]
+            encoded = processor(images=images, return_tensors="pt")
+            encoded["labels"] = torch.tensor(batch["label"])
+            return encoded
+        return _transform
 
     for split_name in ds:
-        print(f"Setting up dynamic SRM-PyTorch transform for {split_name} split...")
-        ds[split_name].set_transform(_transform)
+        augment = split_name == "train"
+        tag = "augmented" if augment else "standard"
+        print(f"Setting up {tag} transform for {split_name} split...")
+        ds[split_name].set_transform(_make_transform(augment))
 
     return ds
 
 
-def build_model(model_path_or_name: str = MODEL_NAME) -> ViTForImageClassification:
-   return ViTForImageClassification.from_pretrained(
+FREEZE_LAYERS = 8  # freeze first N of 12 encoder layers
+
+
+def build_model(model_path_or_name: str = MODEL_NAME, freeze: bool = False) -> ViTForImageClassification:
+   model = ViTForImageClassification.from_pretrained(
        model_path_or_name, num_labels=NUM_LABELS, id2label=ID2LABEL, label2id=LABEL2ID,
        ignore_mismatched_sizes=True, output_attentions=True
    )
+   if freeze:
+       # Freeze embeddings
+       for param in model.vit.embeddings.parameters():
+           param.requires_grad = False
+       # Freeze first N encoder layers
+       for layer in model.vit.encoder.layer[:FREEZE_LAYERS]:
+           for param in layer.parameters():
+               param.requires_grad = False
+       trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+       total = sum(p.numel() for p in model.parameters())
+       print(f"Frozen first {FREEZE_LAYERS} layers: {trainable:,} / {total:,} params trainable ({100*trainable/total:.1f}%)")
+   return model
 
 
 def compute_metrics_fn():
@@ -184,15 +227,18 @@ def train_and_evaluate(output_dir: str, do_train: bool, do_eval: bool):
    ds = get_datasets(data_root)
    processor = build_processor()
    ds = preprocess_datasets(ds, processor)
-   model = build_model()
+   model = build_model(freeze=True)
 
    training_args = TrainingArguments(
     output_dir=output_dir,
     learning_rate=2e-5,
+    weight_decay=0.01,
+    warmup_ratio=0.1,
+    label_smoothing_factor=0.1,
     per_device_train_batch_size=64,     
     per_device_eval_batch_size=64,
     gradient_accumulation_steps=1,      
-    num_train_epochs=3,
+    num_train_epochs=5,
     eval_strategy="epoch",              
     save_strategy="epoch",
     save_total_limit=2,                
@@ -231,15 +277,14 @@ def predict_with_explainability(image_path: str, model_dir: str):
        processor = ViTImageProcessor.from_pretrained(MODEL_NAME)
 
    model = build_model(model_dir)
-   model.to("cuda" if torch.cuda.is_available() else "cpu")
+   device = "cuda" if torch.cuda.is_available() else "cpu"
+   model.to(device)
    model.eval()
 
    raw_image = Image.open(image_path).convert("RGB")
    
    inputs = processor(images=raw_image, return_tensors="pt")
-   inputs["pixel_values"] = apply_srm_to_tensor(inputs["pixel_values"])
-   
-   inputs = {k: v.to(model.device) for k, v in inputs.items()}
+   inputs = {k: v.to(device) for k, v in inputs.items()}
 
    dct_score = get_dct_score(raw_image)
    _, noise_res = get_noise_residual(image_path)
@@ -248,7 +293,7 @@ def predict_with_explainability(image_path: str, model_dir: str):
        outputs = model(**inputs)
 
    attentions = outputs.attentions[-1]
-   mask = attentions[0].mean(dim=0)[0, 1:].reshape(14, 14).cpu().numpy()
+   mask = attentions[0].mean(dim=0)[0, 1:].reshape(14, 14).detach().cpu().numpy()
    mask_resized = cv2.resize(mask, (raw_image.size[0], raw_image.size[1]))
 
    probs = F.softmax(outputs.logits, dim=-1)
@@ -273,6 +318,7 @@ def predict_with_explainability(image_path: str, model_dir: str):
    plt.axis("off")
 
    plt.tight_layout()
+   plt.savefig("prediction_output.png", dpi=300, bbox_inches='tight')
    plt.show()
    return label, conf.item(), dct_score
 
