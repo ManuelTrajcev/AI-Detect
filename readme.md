@@ -33,17 +33,20 @@ predictions/            # Saved prediction visualizations
 
 **Train the SRM model:**
 ```bash
-python train_noise.py --do_train --output_dir ./vit-cifake-output
+python train_srm.py --do_train --output_dir ./vit-cifake-output-srm
 ```
 
 **Train the RGB baseline:**
 ```bash
-python train_rgb.py --do_train --output_dir ./vit-cifake-output2
+python train_rgb.py --do_train --output_dir ./vit-cifake-output-rgb
 ```
 
 **Run inference with explainability visualization:**
 ```bash
-python train_noise.py --predict_image test_images/example.jpg --output_dir ./vit-cifake-output
+python train_srm.py --predict_image test_images/example.jpg --output_dir ./vit-cifake-output-srm
+```
+```bash
+python train_tgb.py --predict_image test_images/example.jpg --output_dir ./vit-cifake-output-rgb
 ```
 
 **Generate noise comparison figure:**

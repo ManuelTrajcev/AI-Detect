@@ -1,5 +1,5 @@
-/vit-cifake-output/*
-/vit-cifake-output2/*
+/vit-cifake-output-srm/*
+/vit-cifake-output-rgb/*
 /test_images
 /__pycache__/*
 /predictions/*
